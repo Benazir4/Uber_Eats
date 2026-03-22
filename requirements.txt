@@ -1,0 +1,9 @@
+# ============================================
+# Uber Eats Bangalore - Required Python Packages
+# ============================================
+# Install all at once with: pip install -r requirements.txt
+# ============================================
+
+pandas>=2.0.0          # Data manipulation and analysis
+numpy>=1.24.0          # Numerical computing
+streamlit>=1.30.0      # Web app framework for the dashboard
