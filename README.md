@@ -152,8 +152,3 @@ This will open the web app in your browser!
 
 ---
 
-## 📅 Project Timeline: 14 Days
-- Days 1-3: Data Cleaning & Preprocessing (Step 1) ✅
-- Days 4-6: Database Setup & SQL Queries (Step 2)
-- Days 7-12: Streamlit Application (Step 3)
-- Days 13-14: Testing, Documentation & GitHub
