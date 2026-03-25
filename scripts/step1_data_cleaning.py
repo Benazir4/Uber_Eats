@@ -295,6 +295,58 @@ df_restaurant['pricing_segment'] = df_restaurant['pricing_segment'].replace('nan
 df_restaurant['rating_category'] = df_restaurant['rating_category'].replace('nan', 'Unrated')
 
 
+# ---- 5g. Remove Logical Duplicates ----
+# Problem: The same restaurant appears MULTIPLE times because of two columns:
+#   - listed_in_type: A restaurant is listed under Delivery, Dine-out, Cafes, etc.
+#   - listed_in_city: A restaurant near area borders is listed in multiple areas
+#
+# Example: 'Hammered' in Cunningham Road appeared 34 times because
+#          6 listing types × multiple nearby cities = 34 entries
+#
+# These are NOT data errors — they're how the platform categorizes restaurants.
+# But for ANALYSIS, we must count each restaurant ONCE to avoid inflating averages.
+#
+# Solution: Group by restaurant_name + location, keep the best values:
+#   - rating: keep MAX (highest/latest rating)
+#   - votes: keep MAX (most recent vote count)
+#   - listed_in_type: combine all types into one comma-separated string
+#   - listed_in_city: combine all cities into one comma-separated string
+#   - other columns: keep FIRST value (they're the same across duplicates)
+
+print("\n5g. Removing logical duplicates...")
+before_logical = len(df_restaurant)
+
+df_restaurant = df_restaurant.groupby(['restaurant_name', 'location']).agg({
+    'online_order': 'first',
+    'book_table': 'first',
+    'rating': 'max',                                                # Keep highest rating
+    'votes': 'max',                                                 # Keep highest votes
+    'phone': 'first',
+    'restaurant_type': 'first',
+    'dish_liked': 'first',
+    'cuisines': 'first',
+    'approx_cost_for_two': 'first',
+    'listed_in_type': lambda x: ', '.join(sorted(x.unique())),      # Combine all listing types
+    'listed_in_city': lambda x: ', '.join(sorted(x.unique())),      # Combine all listed cities
+    'pricing_segment': 'first',
+    'rating_category': 'first',
+}).reset_index()
+
+# Recalculate rating_category based on the max rating we kept
+df_restaurant['rating_category'] = pd.cut(
+    df_restaurant['rating'],
+    bins=[0, 2.5, 3.5, 4.0, 5.0],
+    labels=['Poor', 'Average', 'Good', 'Excellent'],
+    include_lowest=True
+).astype(str).replace('nan', 'Unrated')
+
+after_logical = len(df_restaurant)
+print(f"    Before: {before_logical} rows")
+print(f"    After:  {after_logical} rows")
+print(f"    Removed {before_logical - after_logical} logical duplicates ({((before_logical - after_logical) / before_logical * 100):.1f}%)")
+print(f"    Each restaurant now appears exactly ONCE per location")
+
+
 # --------------------------------------------------------------------------
 # SECTION 6: CLEAN ORDER DATA
 # --------------------------------------------------------------------------
