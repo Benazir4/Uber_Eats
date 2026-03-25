@@ -44,11 +44,11 @@ uber_eats_project/
 │
 ├── data/
 │   ├── raw/                              # Original untouched data files
-│   │   ├── Uber_Eats_data.csv               # Restaurant dataset (23,193 rows)
+│   │   ├── Uber_Eats_data.csv               # Restaurant dataset (23,193 raw rows)
 │   │   └── orders.json                      # Order dataset (25,000 records)
 │   │
 │   └── cleaned/                          # Cleaned & preprocessed data
-│       ├── cleaned_restaurant_data.csv      # Cleaned restaurant data (23,158 rows)
+│       ├── cleaned_restaurant_data.csv      # Cleaned restaurant data (4,531 unique rows)
 │       └── cleaned_orders_data.csv          # Cleaned order data (25,000 rows)
 │
 ├── database/                             # SQLite database
@@ -75,7 +75,7 @@ The complete data pipeline and application flow — from raw data to business de
 ![Application Flowchart](Application_Flowchart.png)
 
 **Flow summary:**
-1. **Raw Data** → CSV (23,193 restaurants) + JSON (25,000 orders)
+1. **Raw Data** → CSV (23,193 raw → 4,531 unique restaurants) + JSON (25,000 orders)
 2. **Step 1: Data Cleaning** → Remove duplicates, clean ratings/costs, handle missing values, feature engineering
 3. **Step 2: Database Setup** → Load into SQLite with 2 tables (restaurants + orders) linked by `restaurant_name`
 4. **Step 3: Streamlit App** → 3-page interactive dashboard:
@@ -88,7 +88,7 @@ The complete data pipeline and application flow — from raw data to business de
 
 ## 📊 Datasets
 
-### 1. Restaurant Data (CSV) — 23,193 rows × 13 columns
+### 1. Restaurant Data (CSV) — 23,193 raw rows × 13 columns (cleaned to 4,531 unique)
 | Column | Description |
 |--------|-------------|
 | restaurant_name | Name of the restaurant |
@@ -194,10 +194,10 @@ Order dataset insights including revenue analysis, monthly trends, discount impa
 
 | Insight | Finding |
 |---------|---------|
-| Best-rated locations | Lavelle Road (4.19), Koramangala 5th Block (4.15) |
-| Most saturated area | Koramangala 5th Block (1,759 restaurants) |
-| Table booking impact | 4.16 avg rating (with) vs 3.81 (without) |
-| Best pricing segment | Premium restaurants: 4.07 avg rating |
+| Best-rated locations | Lavelle Road (4.14), Koramangala 5th Block (4.11) |
+| Most saturated areas | Indiranagar (307), Whitefield (295), HSR (271) |
+| Table booking impact | 4.15 avg rating (with) vs 3.78 (without) — +0.36 uplift |
+| Best pricing segment | Premium restaurants: 4.03 avg rating |
 | Most common cuisine | North Indian (1,136 restaurants) |
 | Discount effect on orders | ₹1,150 avg (with discount) vs ₹822 (without) |
 | Payment distribution | Card, Cash, UPI nearly equally split |
@@ -209,9 +209,10 @@ Order dataset insights including revenue analysis, monthly trends, discount impa
 
 ### 1. Data Extraction & Transformation
 - Loaded CSV and JSON datasets using Pandas
-- Removed 35 duplicate rows
-- Cleaned rating column: "4.1/5" → 4.1, "NEW" → NaN (146 entries)
-- Standardized cost column: "1,000" → 1000
+- Removed 35 exact duplicates using `drop_duplicates()`
+- Removed 18,627 logical duplicates using `groupby()` — same restaurant appeared multiple times due to `listed_in_type` (Delivery, Dine-out, etc.) and `listed_in_city`. Final: 23,193 → 4,531 unique restaurants
+- Cleaned rating column: "4.1/5" → 4.1, "NEW" → NaN (23 entries after dedup)
+- Standardized cost column: "1,000" → 1000, missing costs filled with median
 - Feature engineering: `pricing_segment` (Budget/Mid/Premium), `rating_category` (Poor/Average/Good/Excellent)
 
 ### 2. Database Layer (SQLite)
@@ -239,3 +240,13 @@ Order dataset insights including revenue analysis, monthly trends, discount impa
 - Parameterized queries — SQL injection prevention
 
 ---
+
+## 👤 Author
+
+**[Your Name]**
+
+---
+
+## 📄 License
+
+This project is for educational purposes.
