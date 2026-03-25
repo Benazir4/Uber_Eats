@@ -397,7 +397,7 @@ run_query(7,
 # ========================
 # Q8: Which cuisines receive the highest average ratings?
 # ========================
-# HAVING COUNT(*) >= 20 → only cuisines with enough restaurants
+# HAVING COUNT(*) >= 10 → only cuisines with enough restaurants
 #                         to make the average meaningful
 # ========================
 
@@ -412,7 +412,7 @@ run_query(8,
     FROM restaurants
     WHERE rating IS NOT NULL
     GROUP BY cuisines
-    HAVING COUNT(*) >= 20
+    HAVING COUNT(*) >= 10
     ORDER BY avg_rating DESC
     LIMIT 10;
     """
@@ -423,7 +423,7 @@ run_query(8,
 # Q9: Which cuisines perform well despite having fewer restaurants?
 # ========================
 # These are "hidden gems" - high rating but not many restaurants
-# HAVING COUNT(*) BETWEEN 5 AND 30 → niche cuisines only
+# HAVING COUNT(*) BETWEEN 3 AND 15 → niche cuisines only
 # ========================
 
 run_query(9,
@@ -437,7 +437,7 @@ run_query(9,
     FROM restaurants
     WHERE rating IS NOT NULL
     GROUP BY cuisines
-    HAVING COUNT(*) BETWEEN 5 AND 30
+    HAVING COUNT(*) BETWEEN 3 AND 15
     ORDER BY avg_rating DESC
     LIMIT 10;
     """
@@ -703,6 +703,115 @@ run_query("O5",
 )
 
 
+# Order Q6: Revenue breakdown by pricing segment
+# SQL: JOIN restaurants with orders to get pricing_segment for each order
+# GROUP BY pricing_segment to see which tier drives the most revenue
+run_query("O6",
+    "What is the revenue breakdown by pricing segment?",
+    """
+    SELECT 
+        r.pricing_segment,
+        COUNT(DISTINCT r.restaurant_name) AS restaurant_count,
+        COUNT(o.order_id) AS total_orders,
+        ROUND(SUM(o.order_value), 2) AS total_revenue,
+        ROUND(AVG(o.order_value), 2) AS avg_order_value
+    FROM restaurants r
+    INNER JOIN orders o ON r.restaurant_name = o.restaurant_name
+    WHERE r.pricing_segment != 'Unknown'
+    GROUP BY r.pricing_segment
+    ORDER BY total_revenue DESC;
+    """
+)
+
+
+# Order Q7: Which locations generate the highest order revenue?
+# SQL: JOIN is essential here because orders table has NO location column
+# We get location from the restaurants table via restaurant_name match
+run_query("O7",
+    "Which locations generate the highest order revenue?",
+    """
+    SELECT 
+        r.location,
+        COUNT(o.order_id) AS total_orders,
+        ROUND(SUM(o.order_value), 2) AS total_revenue,
+        ROUND(AVG(o.order_value), 2) AS avg_order_value
+    FROM restaurants r
+    INNER JOIN orders o ON r.restaurant_name = o.restaurant_name
+    GROUP BY r.location
+    ORDER BY total_revenue DESC
+    LIMIT 15;
+    """
+)
+
+
+# Order Q8: Discount usage pattern by payment method
+# SQL: GROUP BY two columns creates 6 groups (3 methods × 2 discount states)
+# This reveals discount usage patterns within each payment method
+run_query("O8",
+    "What is the discount usage pattern by payment method?",
+    """
+    SELECT 
+        payment_method,
+        discount_used,
+        COUNT(*) AS total_orders,
+        ROUND(AVG(order_value), 2) AS avg_order_value,
+        ROUND(SUM(order_value), 2) AS total_revenue
+    FROM orders
+    GROUP BY payment_method, discount_used
+    ORDER BY payment_method, discount_used;
+    """
+)
+
+
+# Order Q9: Which day of the week has the most orders?
+# SQL: strftime('%w', date) extracts day-of-week (0=Sunday, 6=Saturday)
+# CAST converts text to integer for proper sorting
+# CASE WHEN maps numbers to readable day names
+run_query("O9",
+    "Which day of the week has the most orders?",
+    """
+    SELECT 
+        CASE CAST(strftime('%w', order_date) AS INTEGER)
+            WHEN 0 THEN 'Sunday'
+            WHEN 1 THEN 'Monday'
+            WHEN 2 THEN 'Tuesday'
+            WHEN 3 THEN 'Wednesday'
+            WHEN 4 THEN 'Thursday'
+            WHEN 5 THEN 'Friday'
+            WHEN 6 THEN 'Saturday'
+        END AS day_of_week,
+        CAST(strftime('%w', order_date) AS INTEGER) AS day_num,
+        COUNT(*) AS total_orders,
+        ROUND(AVG(order_value), 2) AS avg_order_value,
+        ROUND(SUM(order_value), 2) AS total_revenue
+    FROM orders
+    GROUP BY day_of_week, day_num
+    ORDER BY day_num;
+    """
+)
+
+
+# Order Q10: Top restaurant + payment method combinations by revenue
+# SQL: GROUP BY two columns (restaurant + payment) for granular analysis
+# HAVING COUNT(*) >= 5 filters rare combinations that aren't meaningful
+run_query("O10",
+    "What are the top restaurant + payment method combinations by revenue?",
+    """
+    SELECT 
+        restaurant_name,
+        payment_method,
+        COUNT(*) AS total_orders,
+        ROUND(SUM(order_value), 2) AS total_revenue,
+        ROUND(AVG(order_value), 2) AS avg_order_value
+    FROM orders
+    GROUP BY restaurant_name, payment_method
+    HAVING COUNT(*) >= 5
+    ORDER BY total_revenue DESC
+    LIMIT 15;
+    """
+)
+
+
 # --------------------------------------------------------------------------
 # SECTION 7: CLOSE DATABASE & SUMMARY
 # --------------------------------------------------------------------------
@@ -721,7 +830,7 @@ print(f"""
 
 📝 SQL QUERIES TESTED:
     ✅ Q1-Q15:  Restaurant business questions (all working)
-    ✅ O1-O5:   Order analysis questions (all working)
+    ✅ O1-O10:  Order analysis questions (all working)
 
 📚 SQL CONCEPTS USED:
     • SELECT, FROM, WHERE          → Basic querying
