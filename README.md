@@ -17,7 +17,7 @@ This project analyzes Uber Eats Bangalore restaurant data and builds a decision 
 - **Location Intelligence** — Identify top-performing and over-saturated areas
 - **Partner Onboarding Strategy** — Find ideal locations for new restaurant partners
 - **Pricing Optimization** — Discover the price range that maximizes customer satisfaction
-- **Cuisine Performance Analysis** — Uncover high-performing and niche cuisines
+- **Cuisine Performance Analysis** — Uncover high-performing and niche cuisines (both combined and individual)
 - **Product Feature Impact** — Evaluate the effect of online ordering and table booking on ratings
 - **Market Segmentation** — Segment restaurants by pricing, rating, and features
 - **Customer Satisfaction Drivers** — Identify what drives higher ratings
@@ -31,8 +31,8 @@ This project analyzes Uber Eats Bangalore restaurant data and builds a decision 
 |-----------|-----------|
 | Language | Python 3.10+ |
 | Data Processing | Pandas, NumPy |
-| Database | SQLite (cursor-based SQL) |
-| Web Application | Streamlit |
+| Database | SQLite (3 tables) |
+| Web Application | Streamlit (4 pages) |
 | IDE | Visual Studio Code |
 
 ---
@@ -46,21 +46,21 @@ uber_eats_project/
 │   ├── raw/                              # Original untouched data files
 │   │   ├── Uber_Eats_data.csv               # Restaurant dataset (23,193 raw rows)
 │   │   └── orders.json                      # Order dataset (25,000 records)
-│   │
 │   └── cleaned/                          # Cleaned & preprocessed data
 │       ├── cleaned_restaurant_data.csv      # Cleaned restaurant data (4,531 unique rows)
 │       └── cleaned_orders_data.csv          # Cleaned order data (25,000 rows)
 │
-├── database/                             # SQLite database
-│   └── uber_eats.db                         # Database with restaurants & orders tables
+├── database/
+│   └── uber_eats.db                         # 3 tables: restaurants, orders, cuisine_split
 │
-├── scripts/                              # Python scripts
-│   ├── step1_data_cleaning.py               # Data cleaning & preprocessing
-│   └── step2_database_setup.py              # Database creation & SQL query testing
+├── scripts/
+│   ├── step1_data_cleaning.py               # Data cleaning & preprocessing (8 steps)
+│   └── step2_database_setup.py              # Database creation & 30 SQL queries
 │
-├── app/                                  # Streamlit application
-│   └── streamlit_app.py                     # Main app (Dashboard + Q&A pages)
+├── app/
+│   └── streamlit_app.py                     # 4-page interactive dashboard
 │
+├── Application_Flowchart.png             # Project architecture diagram
 ├── requirements.txt                      # Python dependencies
 ├── .gitignore                            # Git ignore rules
 └── README.md                             # This file
@@ -70,123 +70,74 @@ uber_eats_project/
 
 ## 🔄 Application Flowchart
 
-The complete data pipeline and application flow — from raw data to business decisions:
-
 ![Application Flowchart](Application_Flowchart.png)
 
-**Flow summary:**
-1. **Raw Data** → CSV (23,193 raw → 4,531 unique restaurants) + JSON (25,000 orders)
-2. **Step 1: Data Cleaning** → Remove duplicates, clean ratings/costs, handle missing values, feature engineering
-3. **Step 2: Database Setup** → Load into SQLite with 2 tables (restaurants + orders) linked by `restaurant_name`
-4. **Step 3: Streamlit App** → 3-page interactive dashboard:
-   - **Dashboard** → 6 dynamic filters → parameterized SQL → metrics + filtered table
-   - **Restaurant Q&A** → 15 business questions → SQL execution → result tables
-   - **Order Q&A** → 10 order questions (with JOINs) → SQL execution → result tables
-5. **Output** → DataFrame results displayed in browser → Business decisions
+**Flow:** Raw CSV/JSON → Python cleaning (23,193 → 4,531) → SQLite (3 tables) → 4-page Streamlit app (30 queries) → Business decisions
 
 ---
 
 ## 📊 Datasets
 
-### 1. Restaurant Data (CSV) — 23,193 raw rows × 13 columns (cleaned to 4,531 unique)
+### 1. Restaurant Data (CSV) — 23,193 raw rows (cleaned to 4,531 unique)
 | Column | Description |
 |--------|-------------|
 | restaurant_name | Name of the restaurant |
-| location | Bangalore area/neighborhood (88 unique) |
-| cuisines | Types of cuisine offered |
+| location | Bangalore area (88 unique) |
+| cuisines | Cuisine types (combined from all listing entries) |
 | rating | Customer rating (1.8 - 4.9) |
 | votes | Number of customer votes |
-| approx_cost_for_two | Approximate cost for two people (₹) |
-| online_order | Online ordering available (Yes/No) |
-| book_table | Table booking available (Yes/No) |
-| restaurant_type | Type (Casual Dining, Cafe, Quick Bites, etc.) |
+| approx_cost_for_two | Cost for two people (₹) |
+| online_order | Online ordering (Yes/No) |
+| book_table | Table booking (Yes/No) |
+| pricing_segment | Budget / Mid / Premium (engineered) |
+| rating_category | Poor / Average / Good / Excellent (engineered) |
 
 ### 2. Order Data (JSON) — 25,000 records
 | Column | Description |
 |--------|-------------|
 | order_id | Unique order identifier |
 | restaurant_name | Restaurant that received the order |
-| order_date | Date of the order |
+| order_date | Date of the order (Apr 2025 – Feb 2026) |
 | order_value | Order amount in ₹ |
-| discount_used | Whether discount was applied (Yes/No) |
+| discount_used | Discount applied (Yes/No) |
 | payment_method | Card / Cash / UPI |
+
+### 3. Cuisine Split Table (generated) — 12,606 rows, 98 unique cuisines
+Created by splitting combined cuisines (e.g., "North Indian, Chinese, Thai" → 3 separate rows) for granular individual cuisine analysis.
 
 ---
 
 ## 🚀 Setup & Installation
 
-### Prerequisites
-- Python 3.10 or higher
-- Visual Studio Code (recommended)
-
-### Step 1: Clone the Repository
 ```bash
+# Clone
 git clone https://github.com/YOUR_USERNAME/uber-eats-bangalore-intelligence.git
 cd uber-eats-bangalore-intelligence
-```
 
-### Step 2: Create Virtual Environment
-```bash
+# Virtual environment
 python -m venv venv
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # Mac/Linux
 
-# Windows
-venv\Scripts\activate
-
-# Mac/Linux
-source venv/bin/activate
-```
-
-### Step 3: Install Dependencies
-```bash
+# Install
 pip install -r requirements.txt
-```
 
-### Step 4: Run Data Cleaning
-```bash
+# Run pipeline
 python scripts/step1_data_cleaning.py
-```
-
-### Step 5: Set Up Database
-```bash
 python scripts/step2_database_setup.py
-```
-
-### Step 6: Launch Streamlit App
-```bash
 streamlit run app/streamlit_app.py
 ```
-The app will open in your browser at `http://localhost:8501`
 
 ---
 
-## 📱 Application Pages
+## 📱 Application Pages (4 Pages, 30 Queries)
 
-### Page 1: 🏠 Dashboard
-Interactive restaurant explorer with dynamic SQL-based filtering:
-- Location, Pricing Segment, Restaurant Type
-- Online Ordering, Table Booking, Minimum Rating
-- Summary metrics and full filtered data table
-
-### Page 2: ❓ Q&A — Restaurant Analysis (15 Questions)
-SQL-powered answers to key business questions including:
-1. Highest-rated locations in Bangalore
-2. Over-saturated restaurant locations
-3. Impact of online ordering on ratings
-4. Table booking correlation with ratings
-5. Best price range for customer satisfaction
-6. Performance across pricing tiers
-7. Most common cuisines
-8. Highest-rated cuisines
-9. High-performing niche cuisines
-10. Cost vs. rating relationship
-11. Ideal locations for premium onboarding
-12. High-demand, low-rating locations
-13. Impact of combined features (online + booking)
-14. Success factor combinations
-15. Top performers per pricing segment
-
-### Page 3: 📦 Q&A — Order Analysis (10 Questions)
-Order dataset insights including revenue analysis, monthly trends, discount impact, payment patterns, day-of-week trends, and combined restaurant-order analysis using SQL JOINs.
+| Page | Queries | Description |
+|------|---------|-------------|
+| 🏠 Dashboard | Dynamic | 6 interactive filters with parameterized SQL |
+| ❓ Restaurant Q&A | 15 | Location, pricing, cuisine, features, top performers |
+| 📦 Order Q&A | 10 | Revenue, trends, discounts, day-of-week, JOIN queries |
+| 🍽️ Individual Cuisine Q&A | 5 | Top cuisines, niche opportunities, cuisine × pricing/online |
 
 ---
 
@@ -194,59 +145,43 @@ Order dataset insights including revenue analysis, monthly trends, discount impa
 
 | Insight | Finding |
 |---------|---------|
-| Best-rated locations | Lavelle Road (4.14), Koramangala 5th Block (4.11) |
-| Most saturated areas | Indiranagar (307), Whitefield (295), HSR (271) |
-| Table booking impact | 4.15 avg rating (with) vs 3.78 (without) — +0.36 uplift |
-| Best pricing segment | Premium restaurants: 4.03 avg rating |
-| Most common cuisine | North Indian (1,136 restaurants) |
-| Discount effect on orders | ₹1,150 avg (with discount) vs ₹822 (without) |
-| Payment distribution | Card, Cash, UPI nearly equally split |
-| Higher cost = Higher rating | ₹1500+ restaurants avg 4.23 rating |
+| Table booking impact | 4.15 vs 3.78 — **+0.37 uplift** (strongest correlation) |
+| Best pricing segment | Premium: **4.03** > Budget: 3.84 > Mid: 3.75 |
+| Best locations | **Lavelle Road (4.14)**, Koramangala 5th Block (4.11) |
+| Most saturated | **Indiranagar (307)**, Whitefield (295), HSR (271) |
+| Problem areas | **Kaggadasapura (3.59)**, Kumaraswamy Layout (3.63), Banaswadi (3.65) |
+| Feature combo | Booking Only (**4.18**) > Both (4.12) > Online Only (3.79) |
+| Discount effect | ₹1,150 vs ₹822 — **+39.8% larger orders** |
+| Payment split | Card/Cash/UPI — **equally distributed (~33% each)** |
+| Top individual cuisine | **Modern Indian (4.30)**, Mediterranean (4.28), European (4.28) |
+| Niche opportunities | **Malaysian (4.31)**, Japanese (4.27), Korean (4.25) |
 
 ---
 
 ## 🔧 Approach
 
-### 1. Data Extraction & Transformation
-- Loaded CSV and JSON datasets using Pandas
-- Removed 35 exact duplicates using `drop_duplicates()`
-- Removed 18,627 logical duplicates using `groupby()` — same restaurant appeared multiple times due to `listed_in_type` (Delivery, Dine-out, etc.) and `listed_in_city`. Final: 23,193 → 4,531 unique restaurants
-- Cleaned rating column: "4.1/5" → 4.1, "NEW" → NaN (23 entries after dedup)
-- Standardized cost column: "1,000" → 1000, missing costs filled with median
-- Feature engineering: `pricing_segment` (Budget/Mid/Premium), `rating_category` (Poor/Average/Good/Excellent)
+### 1. Data Cleaning (8 Steps)
+- Removed 35 exact duplicates + 18,627 logical duplicates (same restaurant under multiple listing categories)
+- Cuisines combined using `set()` to preserve ALL unique values across entries
+- Cleaned ratings: "4.1/5" → 4.1, "NEW" → NaN (23 entries)
+- Cleaned costs: "1,000" → 1000, missing filled with median
+- Feature engineering: `pricing_segment`, `rating_category` via `pd.cut()`
 
-### 2. Database Layer (SQLite)
-- Stored cleaned data in relational database (2 tables)
-- Cursor-based SQL queries with GROUP BY, HAVING, CASE WHEN, JOIN
-- Parameterized queries for security
+### 2. Database (SQLite, 3 Tables)
+- `restaurants` (4,531 rows) + `orders` (25,000 rows) + `cuisine_split` (12,606 rows)
+- 30 SQL queries using GROUP BY, HAVING, CASE WHEN, INNER JOIN, SUBSTR, strftime
 
-### 3. Streamlit Application
-- Pure tabular output (no visualizations) as per project requirements
-- SQL-driven analytics (no hardcoding)
-- Interactive filtering with dynamic query building
-- Three-page structure: Dashboard, Restaurant Q&A, Order Q&A
+### 3. Streamlit App (4 Pages)
+- Pure tabular output, SQL-driven, parameterized queries, 30 business questions
 
 ---
 
 ## 📚 SQL Concepts Used
 
-- `SELECT`, `FROM`, `WHERE` — Basic querying
-- `GROUP BY`, `HAVING` — Grouping & filtering groups
-- `ORDER BY`, `LIMIT` — Sorting & limiting
-- `AVG()`, `COUNT()`, `SUM()`, `ROUND()` — Aggregate functions
-- `CASE WHEN` — Conditional logic / segmentation
-- `INNER JOIN` — Combining restaurant + order tables
-- `SUBSTR()`, `strftime()` — String and date functions
-- Parameterized queries — SQL injection prevention
+GROUP BY + HAVING, CASE WHEN, INNER JOIN, AVG/COUNT/SUM/MIN/MAX/ROUND, COUNT(DISTINCT), SUBSTR, strftime, Parameterized queries (?), String split + explode
 
 ---
 
 ## 👤 Author
 
-**[Your Name]**
-
----
-
-## 📄 License
-
-This project is for educational purposes.
+**Benazir** — B.E. Computer Science | MBA Project Management | Data Science
