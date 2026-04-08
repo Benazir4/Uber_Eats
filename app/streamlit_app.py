@@ -109,7 +109,7 @@ st.sidebar.markdown("---")
 # Page selection
 page = st.sidebar.radio(
     "📄 Navigate to:",
-    ["🏠 Dashboard", "❓ Q&A - Restaurant Analysis", "📦 Q&A - Order Analysis"],
+    ["🏠 Dashboard", "❓ Q&A - Restaurant Analysis", "📦 Q&A - Order Analysis", "🍽️ Q&A - Individual Cuisine Analysis"],
     index=0
 )
 
@@ -843,6 +843,166 @@ elif page == "📦 Q&A - Order Analysis":
         questions_to_show = [order_questions[selected_idx]]
     else:
         questions_to_show = order_questions
+
+    # ---- Display Questions and Results ----
+    for q in questions_to_show:
+        st.markdown("---")
+        st.subheader(f"Q{q['num']}: {q['title']}")
+        st.markdown(f"**💼 Business Value:** {q['business_value']}")
+
+        with st.expander("🔍 View SQL Query"):
+            st.code(q['sql'].strip(), language="sql")
+
+        result = run_query(q['sql'])
+        st.dataframe(result, use_container_width=True)
+        st.caption(f"📊 {len(result)} rows returned")
+
+
+# ============================================================================
+# PAGE 4: Q&A - INDIVIDUAL CUISINE ANALYSIS
+# ============================================================================
+# The cuisines column has combined values like "North Indian, Chinese, Thai".
+# The cuisine_split table splits these into individual rows, enabling
+# analysis of each cuisine independently (e.g., just "Chinese" across all
+# restaurants that serve Chinese food, regardless of what else they serve).
+# ============================================================================
+
+elif page == "🍽️ Q&A - Individual Cuisine Analysis":
+
+    st.title("🍽️ Q&A - Individual Cuisine Analysis")
+    st.markdown("Analyze **individual cuisines** independently. The original data has combined cuisines "
+                "like 'North Indian, Chinese, Thai'. Here, each cuisine is split into its own row — "
+                "so we can see how 'Chinese' performs across ALL restaurants that serve it.")
+    st.markdown("---")
+
+    # ---- Quick Metrics ----
+    st.subheader("📊 Cuisine Overview")
+    metrics = run_query("""
+        SELECT
+            COUNT(DISTINCT cuisine_individual) AS unique_cuisines,
+            COUNT(DISTINCT restaurant_name) AS total_restaurants,
+            COUNT(*) AS total_rows,
+            ROUND(AVG(rating), 2) AS avg_rating
+        FROM cuisine_split
+        WHERE rating IS NOT NULL;
+    """)
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Unique Cuisines", f"{metrics['unique_cuisines'].iloc[0]:,}")
+    m2.metric("Restaurants", f"{metrics['total_restaurants'].iloc[0]:,}")
+    m3.metric("Cuisine-Restaurant Pairs", f"{metrics['total_rows'].iloc[0]:,}")
+    m4.metric("Overall Avg Rating", f"{metrics['avg_rating'].iloc[0]}")
+
+    st.markdown("---")
+
+    # ---- Define Cuisine Questions ----
+    cuisine_questions = [
+        {
+            "num": 1,
+            "title": "Which individual cuisines have the highest average ratings?",
+            "business_value": "Identifies the best-performing cuisines for promotion and partner strategy — independent of what other cuisines the restaurant also serves.",
+            "sql": """
+                SELECT
+                    cuisine_individual,
+                    ROUND(AVG(rating), 2) AS avg_rating,
+                    COUNT(*) AS restaurant_count,
+                    ROUND(AVG(approx_cost_for_two), 0) AS avg_cost
+                FROM cuisine_split
+                WHERE rating IS NOT NULL
+                GROUP BY cuisine_individual
+                HAVING COUNT(*) >= 20
+                ORDER BY avg_rating DESC
+                LIMIT 10;
+            """
+        },
+        {
+            "num": 2,
+            "title": "Which individual cuisines are most common in Bangalore?",
+            "business_value": "Shows market saturation per cuisine — helps identify over-served and under-served categories.",
+            "sql": """
+                SELECT
+                    cuisine_individual,
+                    COUNT(*) AS restaurant_count,
+                    ROUND(AVG(rating), 2) AS avg_rating,
+                    ROUND(AVG(approx_cost_for_two), 0) AS avg_cost
+                FROM cuisine_split
+                WHERE rating IS NOT NULL
+                GROUP BY cuisine_individual
+                ORDER BY restaurant_count DESC
+                LIMIT 15;
+            """
+        },
+        {
+            "num": 3,
+            "title": "Which niche cuisines perform well despite having few restaurants?",
+            "business_value": "Highlights untapped opportunities — cuisines with high customer satisfaction but low availability on the platform.",
+            "sql": """
+                SELECT
+                    cuisine_individual,
+                    ROUND(AVG(rating), 2) AS avg_rating,
+                    COUNT(*) AS restaurant_count,
+                    ROUND(AVG(approx_cost_for_two), 0) AS avg_cost
+                FROM cuisine_split
+                WHERE rating IS NOT NULL
+                GROUP BY cuisine_individual
+                HAVING COUNT(*) BETWEEN 10 AND 50
+                ORDER BY avg_rating DESC
+                LIMIT 10;
+            """
+        },
+        {
+            "num": 4,
+            "title": "How do individual cuisines perform across pricing segments?",
+            "business_value": "Shows which cuisines excel at different price points — guiding pricing strategy per cuisine type.",
+            "sql": """
+                SELECT
+                    cuisine_individual,
+                    pricing_segment,
+                    COUNT(*) AS restaurant_count,
+                    ROUND(AVG(rating), 2) AS avg_rating
+                FROM cuisine_split
+                WHERE rating IS NOT NULL
+                    AND pricing_segment != 'Unknown'
+                GROUP BY cuisine_individual, pricing_segment
+                HAVING COUNT(*) >= 10
+                ORDER BY avg_rating DESC
+                LIMIT 15;
+            """
+        },
+        {
+            "num": 5,
+            "title": "Does online ordering affect ratings differently for each cuisine?",
+            "business_value": "Reveals which cuisines benefit from or are hurt by online ordering — guiding feature recommendations per cuisine.",
+            "sql": """
+                SELECT
+                    cuisine_individual,
+                    online_order,
+                    COUNT(*) AS restaurant_count,
+                    ROUND(AVG(rating), 2) AS avg_rating
+                FROM cuisine_split
+                WHERE rating IS NOT NULL
+                GROUP BY cuisine_individual, online_order
+                HAVING COUNT(*) >= 20
+                ORDER BY cuisine_individual, online_order;
+            """
+        }
+    ]
+
+    # ---- Question Selector ----
+    view_mode = st.radio(
+        "View mode:",
+        ["Select a question", "Show all questions"],
+        horizontal=True,
+        key="cuisine_view_mode"
+    )
+
+    if view_mode == "Select a question":
+        question_options = [f"Q{q['num']}: {q['title']}" for q in cuisine_questions]
+        selected = st.selectbox("Select a cuisine analysis question:", question_options)
+        selected_idx = question_options.index(selected)
+        questions_to_show = [cuisine_questions[selected_idx]]
+    else:
+        questions_to_show = cuisine_questions
 
     # ---- Display Questions and Results ----
     for q in questions_to_show:
