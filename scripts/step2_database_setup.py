@@ -110,6 +110,25 @@ print("\n📤 Loading order data into 'orders' table...")
 df_orders.to_sql('orders', conn, if_exists='replace', index=False)
 print(f"   ✅ 'orders' table created with {len(df_orders)} rows")
 
+# --- Create Individual Cuisine Table ---
+# The cuisines column has combined values like "North Indian, Chinese, Thai"
+# We split these into individual rows so we can analyze each cuisine separately
+# Example: One restaurant with "North Indian, Chinese" becomes 2 rows:
+#   Row 1: cuisine_individual = "North Indian"
+#   Row 2: cuisine_individual = "Chinese"
+# Both rows keep the same restaurant_name, rating, location, etc.
+
+print("\n📤 Creating individual cuisine table ('cuisine_split')...")
+df_cuisine = df_restaurant[['restaurant_name', 'location', 'cuisines', 'rating', 'votes',
+                            'approx_cost_for_two', 'online_order', 'book_table',
+                            'pricing_segment', 'rating_category']].copy()
+df_cuisine['cuisine_individual'] = df_cuisine['cuisines'].str.split(', ')
+df_cuisine = df_cuisine.explode('cuisine_individual')
+df_cuisine['cuisine_individual'] = df_cuisine['cuisine_individual'].str.strip()
+df_cuisine.to_sql('cuisine_split', conn, if_exists='replace', index=False)
+print(f"   ✅ 'cuisine_split' table created with {len(df_cuisine)} rows")
+print(f"      ({df_cuisine['cuisine_individual'].nunique()} unique individual cuisines)")
+
 # --- Save (commit) the changes ---
 conn.commit()
 print("\n💾 Database saved successfully!")
@@ -813,7 +832,114 @@ run_query("O10",
 
 
 # --------------------------------------------------------------------------
-# SECTION 7: CLOSE DATABASE & SUMMARY
+# SECTION 7: INDIVIDUAL CUISINE ANALYSIS (BONUS)
+# --------------------------------------------------------------------------
+# The cuisines column has combined values like "North Indian, Chinese, Thai"
+# The cuisine_split table has these split into individual rows.
+# This enables analysis of each cuisine independently.
+# --------------------------------------------------------------------------
+
+print("\n" + "=" * 70)
+print("STEP 5: INDIVIDUAL CUISINE ANALYSIS")
+print("=" * 70)
+
+
+# Cuisine Q1: Top individual cuisines by rating
+run_query("C1",
+    "Which individual cuisines have the highest average ratings?",
+    """
+    SELECT 
+        cuisine_individual,
+        ROUND(AVG(rating), 2) AS avg_rating,
+        COUNT(*) AS restaurant_count,
+        ROUND(AVG(approx_cost_for_two), 0) AS avg_cost
+    FROM cuisine_split
+    WHERE rating IS NOT NULL
+    GROUP BY cuisine_individual
+    HAVING COUNT(*) >= 20
+    ORDER BY avg_rating DESC
+    LIMIT 10;
+    """
+)
+
+
+# Cuisine Q2: Most common individual cuisines
+run_query("C2",
+    "Which individual cuisines are most common in Bangalore?",
+    """
+    SELECT 
+        cuisine_individual,
+        COUNT(*) AS restaurant_count,
+        ROUND(AVG(rating), 2) AS avg_rating,
+        ROUND(AVG(approx_cost_for_two), 0) AS avg_cost
+    FROM cuisine_split
+    WHERE rating IS NOT NULL
+    GROUP BY cuisine_individual
+    ORDER BY restaurant_count DESC
+    LIMIT 15;
+    """
+)
+
+
+# Cuisine Q3: Niche individual cuisines (high rating, few restaurants)
+run_query("C3",
+    "Which niche cuisines perform well despite having few restaurants?",
+    """
+    SELECT 
+        cuisine_individual,
+        ROUND(AVG(rating), 2) AS avg_rating,
+        COUNT(*) AS restaurant_count,
+        ROUND(AVG(approx_cost_for_two), 0) AS avg_cost
+    FROM cuisine_split
+    WHERE rating IS NOT NULL
+    GROUP BY cuisine_individual
+    HAVING COUNT(*) BETWEEN 10 AND 50
+    ORDER BY avg_rating DESC
+    LIMIT 10;
+    """
+)
+
+
+# Cuisine Q4: Individual cuisine performance by pricing segment
+run_query("C4",
+    "How do individual cuisines perform across pricing segments?",
+    """
+    SELECT 
+        cuisine_individual,
+        pricing_segment,
+        COUNT(*) AS restaurant_count,
+        ROUND(AVG(rating), 2) AS avg_rating
+    FROM cuisine_split
+    WHERE rating IS NOT NULL
+        AND pricing_segment != 'Unknown'
+    GROUP BY cuisine_individual, pricing_segment
+    HAVING COUNT(*) >= 10
+    ORDER BY avg_rating DESC
+    LIMIT 15;
+    """
+)
+
+
+# Cuisine Q5: Online ordering impact per cuisine
+run_query("C5",
+    "Does online ordering affect ratings differently for each cuisine?",
+    """
+    SELECT 
+        cuisine_individual,
+        online_order,
+        COUNT(*) AS restaurant_count,
+        ROUND(AVG(rating), 2) AS avg_rating
+    FROM cuisine_split
+    WHERE rating IS NOT NULL
+    GROUP BY cuisine_individual, online_order
+    HAVING COUNT(*) >= 20
+    ORDER BY cuisine_individual, online_order;
+    """
+)
+
+
+# --------------------------------------------------------------------------
+# SECTION 8: CLOSE DATABASE & SUMMARY
 # --------------------------------------------------------------------------
 
 conn.close()
@@ -826,11 +952,15 @@ print("=" * 70)
 print(f"""
 🗄️  DATABASE CREATED:
     File: {DB_PATH}
-    Tables: restaurants ({len(df_restaurant)} rows), orders ({len(df_orders)} rows)
+    Tables:
+      restaurants   ({len(df_restaurant)} rows) — unique restaurants per location
+      orders        ({len(df_orders)} rows) — order transactions
+      cuisine_split ({len(df_cuisine)} rows) — individual cuisines (split from combined)
 
 📝 SQL QUERIES TESTED:
     ✅ Q1-Q15:  Restaurant business questions (all working)
     ✅ O1-O10:  Order analysis questions (all working)
+    ✅ C1-C5:   Individual cuisine analysis (all working)
 
 📚 SQL CONCEPTS USED:
     • SELECT, FROM, WHERE          → Basic querying
@@ -840,7 +970,7 @@ print(f"""
     • CASE WHEN                    → Conditional logic
     • INNER JOIN                   → Combining tables
     • SUBSTR()                     → String functions
-    • Subqueries                   → Queries within queries
+    • String splitting + explode   → Individual cuisine analysis
 
 👉 NEXT: Run Step 3 → streamlit run app/streamlit_app.py
 """)
