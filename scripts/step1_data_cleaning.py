@@ -309,6 +309,10 @@ df_restaurant['rating_category'] = df_restaurant['rating_category'].replace('nan
 # Solution: Group by restaurant_name + location, keep the best values:
 #   - rating: keep MAX (highest/latest rating)
 #   - votes: keep MAX (most recent vote count)
+#   - cuisines: combine ALL unique individual cuisines across entries
+#     (e.g., entry1 "Desserts, Cafe" + entry2 "Desserts, Beverages, Ice Cream"
+#      becomes "Beverages, Cafe, Desserts, Ice Cream" — no cuisine lost)
+#   - dish_liked: combine ALL unique dishes across entries
 #   - listed_in_type: combine all types into one comma-separated string
 #   - listed_in_city: combine all cities into one comma-separated string
 #   - other columns: keep FIRST value (they're the same across duplicates)
@@ -323,8 +327,8 @@ df_restaurant = df_restaurant.groupby(['restaurant_name', 'location']).agg({
     'votes': 'max',                                                 # Keep highest votes
     'phone': 'first',
     'restaurant_type': 'first',
-    'dish_liked': 'first',
-    'cuisines': 'first',
+    'dish_liked': lambda x: ', '.join(sorted(set(', '.join(x.unique()).split(', ')))),  # Combine all unique dishes
+    'cuisines': lambda x: ', '.join(sorted(set(', '.join(x.unique()).split(', ')))),    # Combine all unique cuisines
     'approx_cost_for_two': 'first',
     'listed_in_type': lambda x: ', '.join(sorted(x.unique())),      # Combine all listing types
     'listed_in_city': lambda x: ', '.join(sorted(x.unique())),      # Combine all listed cities
